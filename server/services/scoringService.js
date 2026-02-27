@@ -74,6 +74,9 @@ const evaluateDestinations = (destinations, constraints) => {
     // 1. Hard Filtering (Constraints)
     const validDestinations = [];
     destinations.forEach(dest => {
+        // Always filter out the starting location itself
+        if (dest.name.toLowerCase() === startLocation.toLowerCase()) return;
+
         // If manual list provided, only process those
         if (constraints.manualDestinations && constraints.manualDestinations.length > 0) {
             const isTarget = constraints.manualDestinations.some(
@@ -175,6 +178,7 @@ const evaluateDestinations = (destinations, constraints) => {
 
         return {
             destination: dest,
+            estimatedCost: dest.estimatedCost,
             score: parseFloat(score.toFixed(4)),
             scoreDetails,
             explanation: generateExplanation(dest, constraints, scoreDetails)

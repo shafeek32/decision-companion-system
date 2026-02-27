@@ -12,7 +12,8 @@ const Wizard = ({ onResults }) => {
         defaultValues: {
             preferredType: 'No preference',
             preferredWeather: 'No preference',
-            modeOfTravel: 'Train'
+            modeOfTravel: 'Train',
+            searchMode: 'auto'
         }
     });
 
