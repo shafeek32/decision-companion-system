@@ -14,7 +14,8 @@ router.post('/evaluate', async (req, res) => {
             scope,
             preferredType, // 'Hill station', 'Beach', 'City', 'Forest', 'No preference'
             preferredWeather, // 'Cool', 'Warm', 'Moderate', 'No preference'
-            modeOfTravel // 'Car', 'Train', 'Flight'
+            modeOfTravel, // 'Car', 'Train', 'Flight'
+            manualDestinations // Optional array of names
         } = req.body;
 
         // Basic validation

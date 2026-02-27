@@ -74,8 +74,16 @@ const evaluateDestinations = (destinations, constraints) => {
     // 1. Hard Filtering (Constraints)
     const validDestinations = [];
     destinations.forEach(dest => {
-        // Filter by scope if provided
-        if (scope && dest.scope !== scope) return;
+        // If manual list provided, only process those
+        if (constraints.manualDestinations && constraints.manualDestinations.length > 0) {
+            const isTarget = constraints.manualDestinations.some(
+                targetName => targetName.toLowerCase() === dest.name.toLowerCase()
+            );
+            if (!isTarget) return;
+        }
+
+        // Filter by scope if provided (ONLY in auto mode or if manual match found)
+        if (!constraints.manualDestinations && scope && dest.scope !== scope) return;
 
         // Calculate Cost
         const totalCost = calculateTotalCost(dest, days, modeOfTravel);

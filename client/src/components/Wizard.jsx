@@ -17,7 +17,7 @@ const Wizard = ({ onResults }) => {
     });
 
     const handleNext = async () => {
-        const isValid = await trigger(['startLocation', 'budget', 'days']);
+        const isValid = await trigger(['startLocation', 'budget', 'days', 'searchMode', 'manualDestinationsText']);
         if (isValid) setStep(2);
     };
 
@@ -26,8 +26,17 @@ const Wizard = ({ onResults }) => {
     const submitForm = async (data) => {
         setIsLoading(true);
         try {
+            // Process manual destinations if in manual mode
+            const payload = { ...data };
+            if (data.searchMode === 'manual' && data.manualDestinationsText) {
+                payload.manualDestinations = data.manualDestinationsText
+                    .split(',')
+                    .map(name => name.trim())
+                    .filter(name => name !== '');
+            }
+
             // Replace with actual backend API if deployed, proxy is set in dev
-            const response = await axios.post('/api/evaluate', data);
+            const response = await axios.post('/api/evaluate', payload);
             onResults(response.data.results);
         } catch (error) {
             console.error('API Error:', error);
@@ -38,11 +47,11 @@ const Wizard = ({ onResults }) => {
     };
 
     return (
-        <div className="w-full max-w-xl mx-auto bg-surface/50 backdrop-blur-md shadow-2xl rounded-2xl p-8 border border-slate-800">
+        <div className="w-full max-w-xl mx-auto bg-surface/80 backdrop-blur-lg shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-2xl p-8 border border-cyan-800">
             {/* Progress indicator */}
             <div className="flex items-center space-x-2 mb-8">
-                <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-slate-700'}`}></div>
-                <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-slate-700'}`}></div>
+                <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-cyan-900/50'}`}></div>
+                <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-cyan-900/50'}`}></div>
             </div>
 
             <form>
@@ -51,6 +60,7 @@ const Wizard = ({ onResults }) => {
                         register={register}
                         errors={errors}
                         onNext={handleNext}
+                        watch={watch}
                     />
                 )}
 

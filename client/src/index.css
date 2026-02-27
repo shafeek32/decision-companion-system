@@ -5,5 +5,13 @@
 @layer base {
   body {
     @apply antialiased text-text bg-background;
+    background-image: radial-gradient(circle at center, #0e7490 0%, #041e2e 100%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface/80 backdrop-blur-md rounded-2xl shadow-[0_4px_30px_rgba(0, 0, 0, 0.5)] border border-cyan-800/60;
   }
 }
