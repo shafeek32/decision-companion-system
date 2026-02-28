@@ -15,6 +15,8 @@ const destinationSchema = new mongoose.Schema({
     hotelCostPerDay: { type: Number, required: true },
     foodCostPerDay: { type: Number, required: true },
     baseTravelCost: {
+        Bike: { type: Number, required: true },
+        Bus: { type: Number, required: true },
         Car: { type: Number, required: true },
         Train: { type: Number, required: true },
         Flight: { type: Number, required: true }

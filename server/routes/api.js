@@ -27,7 +27,7 @@ router.post('/evaluate', async (req, res) => {
         const destinations = await Destination.find({});
 
         // Calculate and Rank
-        const constraints = { startLocation, budget: Number(budget), days: Number(days), scope, preferredType, preferredWeather, modeOfTravel };
+        const constraints = { startLocation, budget: Number(budget), days: Number(days), scope, preferredType, preferredWeather, modeOfTravel, manualDestinations };
         const results = evaluateDestinations(destinations, constraints);
 
         res.json({

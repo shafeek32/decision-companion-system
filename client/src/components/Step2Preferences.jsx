@@ -71,8 +71,8 @@ const Step2Preferences = ({ register, watch, onBack, onSubmit, isLoading }) => {
                 {/* Mode of Travel */}
                 <div>
                     <label className="block text-sm font-medium text-textMuted mb-2">Mode of Travel</label>
-                    <div className="grid grid-cols-3 gap-3">
-                        {['Car', 'Train', 'Flight'].map(mode => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                        {['Bike', 'Bus', 'Car', 'Train', 'Flight'].map(mode => (
                             <label key={mode} className="flex flex-col items-center justify-center space-y-2 bg-black/20 border border-cyan-800 p-3 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/10 transition backdrop-blur-sm shadow-inner overflow-hidden">
                                 <input
                                     type="radio"
