@@ -86,78 +86,82 @@ const Results = ({ data, onReset }) => {
             </div>
 
             {/* Winner Hero Card */}
-            <div className="relative bg-blue-50/50 overflow-hidden border-b border-gray-200">
-                {winner.input.imageUrl && (
-                    <div className="h-48 overflow-hidden relative">
-                        <img
-                            src={winner.input.imageUrl}
-                            alt={winner.name}
-                            className="w-full h-full object-cover"
-                            onError={e => { e.target.style.display = 'none'; }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        <h3 className="absolute bottom-4 left-6 text-3xl font-bold text-white tracking-tight drop-shadow-md">{winner.name}</h3>
-                    </div>
-                )}
+            {winner && (
+                <div className="relative bg-blue-50/50 overflow-hidden border-b border-gray-200">
+                    {winner.input && winner.input.imageUrl && (
+                        <div className="h-48 overflow-hidden relative">
+                            <img
+                                src={winner.input.imageUrl}
+                                alt={winner.name}
+                                className="w-full h-full object-cover"
+                                onError={e => { e.target.style.display = 'none'; }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <h3 className="absolute bottom-4 left-6 text-3xl font-bold text-white tracking-tight drop-shadow-md">{winner.name}</h3>
+                        </div>
+                    )}
 
-                <div className="p-6 space-y-5">
-                    {!winner.input.imageUrl && (
-                        <div className="flex items-start justify-between flex-wrap gap-3">
-                            <div>
-                                <span className="inline-flex items-center gap-1 text-xs font-bold bg-primary text-white px-3 py-1 rounded-full mb-2 shadow-sm">
+                    <div className="p-6 space-y-5">
+                        {winner.input && !winner.input.imageUrl && (
+                            <div className="flex items-start justify-between flex-wrap gap-3">
+                                <div>
+                                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-primary text-white px-3 py-1 rounded-full mb-2 shadow-sm">
+                                        <Trophy className="w-3 h-3" /> #1 BEST MATCH
+                                    </span>
+                                    <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{winner.name}</h3>
+                                </div>
+                            </div>
+                        )}
+
+                        {winner.input && winner.input.imageUrl && (
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold bg-primary text-white px-3 py-1 rounded-full shadow-sm">
                                     <Trophy className="w-3 h-3" /> #1 BEST MATCH
                                 </span>
-                                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{winner.name}</h3>
                             </div>
+                        )}
+
+                        <div className="flex justify-between items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                            <span className="text-sm text-gray-500 font-semibold uppercase tracking-wider">Final Score</span>
+                            <span className="text-3xl font-extrabold text-primary">{(winner.score * 100).toFixed(1)}%</span>
                         </div>
-                    )}
 
-                    {winner.input.imageUrl && (
-                        <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 text-xs font-bold bg-primary text-white px-3 py-1 rounded-full shadow-sm">
-                                <Trophy className="w-3 h-3" /> #1 BEST MATCH
-                            </span>
-                        </div>
-                    )}
-
-                    <div className="flex justify-between items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
-                        <span className="text-sm text-gray-500 font-semibold uppercase tracking-wider">Final Score</span>
-                        <span className="text-3xl font-extrabold text-primary">{(winner.score * 100).toFixed(1)}%</span>
-                    </div>
-
-                    {/* Winner Key Stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {Object.keys(FACTOR_LABELS).map(key => (
-                            <div key={key} className={`rounded-xl px-4 py-3 border ${bgScoreColor(winner.scoreBreakdown[key]?.normalized ?? 0)}`}>
-                                <p className="text-xs text-gray-500 font-semibold mb-0.5">
-                                    {FACTOR_ICONS[key]} {FACTOR_LABELS[key]}
-                                </p>
-                                <p className="font-bold text-gray-900 text-base">{formatRaw(key, winner.input[key])}</p>
-                                <p className={`text-xs font-semibold mt-1 ${scoreColor(winner.scoreBreakdown[key]?.normalized ?? 0)}`}>
-                                    Score: {((winner.scoreBreakdown[key]?.normalized ?? 0) * 100).toFixed(0)}%
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Explanation */}
-                    {winner.explanationPoints && winner.explanationPoints.length > 0 && (
-                        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-3">
-                            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold flex items-center gap-1">
-                                <Info className="w-4 h-4 text-primary" /> Why {winner.name} won
-                            </p>
-                            <ul className="space-y-2">
-                                {winner.explanationPoints.map((point, i) => (
-                                    <li key={i} className="text-sm text-gray-700 leading-relaxed flex items-start gap-2">
-                                        <span className="text-primary mt-0.5">•</span>
-                                        <span dangerouslySetInnerHTML={{ __html: point.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                                    </li>
+                        {/* Winner Key Stats */}
+                        {winner.input && (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {Object.keys(FACTOR_LABELS).map(key => (
+                                    <div key={key} className={`rounded-xl px-4 py-3 border ${bgScoreColor(winner.scoreBreakdown?.[key]?.normalized ?? 0)}`}>
+                                        <p className="text-xs text-gray-500 font-semibold mb-0.5">
+                                            {FACTOR_ICONS[key]} {FACTOR_LABELS[key]}
+                                        </p>
+                                        <p className="font-bold text-gray-900 text-base">{formatRaw(key, winner.input[key])}</p>
+                                        <p className={`text-xs font-semibold mt-1 ${scoreColor(winner.scoreBreakdown?.[key]?.normalized ?? 0)}`}>
+                                            Score: {((winner.scoreBreakdown?.[key]?.normalized ?? 0) * 100).toFixed(0)}%
+                                        </p>
+                                    </div>
                                 ))}
-                            </ul>
-                        </div>
-                    )}
+                            </div>
+                        )}
+
+                        {/* Explanation */}
+                        {winner.explanationPoints && winner.explanationPoints.length > 0 && (
+                            <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-3">
+                                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold flex items-center gap-1">
+                                    <Info className="w-4 h-4 text-primary" /> Why {winner.name} won
+                                </p>
+                                <ul className="space-y-2">
+                                    {winner.explanationPoints.map((point, i) => (
+                                        <li key={i} className="text-sm text-gray-700 leading-relaxed flex items-start gap-2">
+                                            <span className="text-primary mt-0.5">•</span>
+                                            <span dangerouslySetInnerHTML={{ __html: point.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Bar Chart */}
             <div className="p-6 border-b border-gray-200">
@@ -188,8 +192,12 @@ const Results = ({ data, onReset }) => {
                             {Object.keys(FACTOR_LABELS).map(key => (
                                 <th key={key} className="text-center py-3 px-2 text-gray-500 font-semibold uppercase tracking-wider text-xs whitespace-nowrap">
                                     {FACTOR_ICONS[key]} {FACTOR_LABELS[key]}
-                                    <br />
-                                    <span className="text-gray-400 normal-case tracking-normal font-normal">w={weightsUsed[key]}</span>
+                                    {weightsUsed && (
+                                        <>
+                                            <br />
+                                            <span className="text-gray-400 normal-case tracking-normal font-normal">w={weightsUsed[key]}</span>
+                                        </>
+                                    )}
                                 </th>
                             ))}
                             <th className="text-center py-3 pl-4 text-gray-500 font-semibold uppercase tracking-wider text-xs">Score</th>
@@ -207,14 +215,16 @@ const Results = ({ data, onReset }) => {
                                     {i === 0 && <span className="text-yellow-500">🏆</span>}{r.name}
                                 </td>
                                 {Object.keys(FACTOR_LABELS).map(key => {
-                                    const b = r.scoreBreakdown[key];
+                                    const b = r.scoreBreakdown ? r.scoreBreakdown[key] : null;
                                     return (
                                         <td key={key} className="py-4 px-2 text-center">
                                             <div className="flex flex-col items-center gap-1">
-                                                <span className="text-gray-700 font-medium">{formatRaw(key, r.input[key])}</span>
-                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${bgScoreColor(b?.normalized ?? 0)} ${scoreColor(b?.normalized ?? 0)}`}>
-                                                    {((b?.normalized ?? 0) * 100).toFixed(0)}%
-                                                </span>
+                                                <span className="text-gray-700 font-medium">{formatRaw(key, r.input ? r.input[key] : r[key])}</span>
+                                                {b && (
+                                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${bgScoreColor(b.normalized)} ${scoreColor(b.normalized)}`}>
+                                                        {(b.normalized * 100).toFixed(0)}%
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                     );
@@ -231,41 +241,43 @@ const Results = ({ data, onReset }) => {
             </div>
 
             {/* Weight Transparency Panel */}
-            <div className="border-t border-gray-200 overflow-hidden bg-gray-50">
-                <button
-                    onClick={() => setShowWeights(!showWeights)}
-                    className="w-full flex justify-between items-center p-6 text-left hover:bg-gray-100 transition"
-                >
-                    <span className="font-semibold text-gray-700 flex items-center gap-2">
-                        <Info className="w-5 h-5 text-gray-400" /> System Weight Disclosure
-                    </span>
-                    {showWeights ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
-                </button>
-                {showWeights && (
-                    <div className="px-6 pb-6">
-                        <p className="text-sm text-gray-500 mb-5">
-                            The system automatically assigns these fixed weights. Budget has the highest priority.
-                            Weights sum to 1.00.
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                            {Object.entries(weightsUsed).map(([key, w]) => (
-                                <div key={key} className="bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
-                                    <p className="text-xs text-gray-500 font-medium mb-2">{FACTOR_ICONS[key]} {FACTOR_LABELS[key]}</p>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 bg-gray-100 rounded-full h-2">
-                                            <div
-                                                className="h-2 rounded-full bg-primary"
-                                                style={{ width: `${w * 100}%` }}
-                                            />
+            {weightsUsed && (
+                <div className="border-t border-gray-200 overflow-hidden bg-gray-50">
+                    <button
+                        onClick={() => setShowWeights(!showWeights)}
+                        className="w-full flex justify-between items-center p-6 text-left hover:bg-gray-100 transition"
+                    >
+                        <span className="font-semibold text-gray-700 flex items-center gap-2">
+                            <Info className="w-5 h-5 text-gray-400" /> System Weight Disclosure
+                        </span>
+                        {showWeights ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                    </button>
+                    {showWeights && (
+                        <div className="px-6 pb-6">
+                            <p className="text-sm text-gray-500 mb-5">
+                                The system automatically assigns these fixed weights. Budget has the highest priority.
+                                Weights sum to 1.00.
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                {Object.entries(weightsUsed).map(([key, w]) => (
+                                    <div key={key} className="bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 font-medium mb-2">{FACTOR_ICONS[key]} {FACTOR_LABELS[key]}</p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 bg-gray-100 rounded-full h-2">
+                                                <div
+                                                    className="h-2 rounded-full bg-primary"
+                                                    style={{ width: `${w * 100}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700">{(w * 100).toFixed(0)}%</span>
                                         </div>
-                                        <span className="text-sm font-bold text-gray-700">{(w * 100).toFixed(0)}%</span>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

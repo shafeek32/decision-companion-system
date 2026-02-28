@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const Destination = require('./models/Destination');
+const CatalogDestination = require('./models/CatalogDestination');
 
 dotenv.config();
 
@@ -99,9 +99,9 @@ const seedDB = async () => {
     try {
         await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/decision_companion');
         console.log('Connected to Database. Purging old data...');
-        await Destination.deleteMany({});
+        await CatalogDestination.deleteMany({});
         console.log('Inserting seed data...');
-        await Destination.insertMany(seedDestinations);
+        await CatalogDestination.insertMany(seedDestinations);
         console.log('Database seeded successfully!');
     } catch (err) {
         console.error('Error seeding data:', err);

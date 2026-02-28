@@ -18,7 +18,7 @@ const emptyDestination = () => ({
 });
 
 const FIELD_META = [
-    { key: 'budget', label: 'Budget (₹)', placeholder: 'e.g. 12000', type: 'number', min: 1 },
+    { key: 'budget', label: 'Total Trip Budget (₹)', placeholder: 'e.g. 12000', type: 'number', min: 1 },
     { key: 'travelTimeHours', label: 'Travel Time (hrs)', placeholder: 'e.g. 5', type: 'number', min: 0.1 },
     { key: 'distanceKm', label: 'Distance (km)', placeholder: 'e.g. 130', type: 'number', min: 1 },
     { key: 'safetyRating', label: 'Safety (1-10)', placeholder: 'e.g. 8', type: 'number', min: 1, max: 10 },
@@ -64,7 +64,7 @@ const DestinationMiniForm = ({ index, onAdd, onRemove, isRemovable }) => {
                         type="text"
                         value={dest.name}
                         onChange={e => setDest({ ...dest, name: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                         placeholder="e.g. Munnar"
                     />
                 </div>
@@ -82,7 +82,7 @@ const DestinationMiniForm = ({ index, onAdd, onRemove, isRemovable }) => {
                                 min={meta.min}
                                 max={meta.max}
                                 step={meta.key === 'userRating' || meta.key === 'travelTimeHours' ? '0.1' : '1'}
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                             />
                         </div>
                     ))}
@@ -112,6 +112,12 @@ const ChatLayout = () => {
     const [tripData, setTripData] = useState({
         startLocation: '',
         modeOfTravel: '',
+        companions: '',
+        memberCount: 1,
+        tripDays: 3,
+        totalBudget: '',
+        hasDestinations: null,
+        numDestinationsToCompare: 0,
         destinations: []
     });
     const [loading, setLoading] = useState(false);
@@ -129,36 +135,6 @@ const ChatLayout = () => {
         setMessages(prev => [...prev, { ...msg, id: Date.now() + Math.random() }]);
     };
 
-    const handleInputSubmit = (e) => {
-        e.preventDefault();
-        const text = inputValue.trim();
-        if (!text) return;
-
-        // determine current state based on last system message type
-        const lastSystemMsg = [...messages].reverse().find(m => m.role === 'system');
-
-        if (lastSystemMsg?.type === 'ASK_LOCATION') {
-            addMessage({ role: 'user', content: text });
-            setTripData(prev => ({ ...prev, startLocation: text }));
-            setInputValue('');
-
-            setTimeout(() => {
-                addMessage({
-                    role: 'system',
-                    content: `Great, starting from ${text}. How are you planning to travel?`,
-                    type: 'ASK_MODE'
-                });
-            }, 600);
-        } else {
-            // Default if input isn't expected right now or arbitrary chat
-            addMessage({ role: 'user', content: text });
-            setInputValue('');
-            setTimeout(() => {
-                addMessage({ role: 'system', content: "Please use the provided options to continue." });
-            }, 500);
-        }
-    };
-
     const handleModeSelect = (mode) => {
         addMessage({ role: 'user', content: mode });
         setTripData(prev => ({ ...prev, modeOfTravel: mode }));
@@ -166,9 +142,138 @@ const ChatLayout = () => {
         setTimeout(() => {
             addMessage({
                 role: 'system',
-                content: `Awesome. You are traveling by ${mode}. Now, please enter the details for your first destination.`,
-                type: 'ASK_DESTINATION'
+                content: `Awesome. You are traveling by ${mode}. Are you traveling alone or with family/friends?`,
+                type: 'ASK_COMPANIONS'
             });
+        }, 600);
+    };
+
+    const handleCompanionsSelect = (companionsType) => {
+        addMessage({ role: 'user', content: companionsType });
+        setTripData(prev => ({ ...prev, companions: companionsType }));
+
+        setTimeout(() => {
+            if (companionsType === 'Alone') {
+                addMessage({
+                    role: 'system',
+                    content: "Got it, a solo trip! How many days is the trip?",
+                    type: 'ASK_TRIP_DAYS'
+                });
+            } else {
+                addMessage({
+                    role: 'system',
+                    content: "Sounds fun! How many members are traveling in total?",
+                    type: 'ASK_MEMBER_COUNT'
+                });
+            }
+        }, 600);
+    };
+
+    const handleInputSubmit = (e) => {
+        e.preventDefault();
+        const text = inputValue.trim();
+        if (!text) return;
+
+        const lastSystemMsg = [...messages].reverse().find(m => m.role === 'system');
+
+        if (lastSystemMsg?.type === 'ASK_LOCATION') {
+            addMessage({ role: 'user', content: text });
+            setTripData(prev => ({ ...prev, startLocation: text }));
+            setInputValue('');
+            setTimeout(() => {
+                addMessage({
+                    role: 'system',
+                    content: `Great, starting from ${text}. How are you planning to travel?`,
+                    type: 'ASK_MODE'
+                });
+            }, 600);
+        } else if (lastSystemMsg?.type === 'ASK_MEMBER_COUNT') {
+            const count = parseInt(text);
+            if (isNaN(count) || count < 1) {
+                addMessage({ role: 'system', content: "Please enter a valid number of members.", type: 'ASK_MEMBER_COUNT' });
+                return;
+            }
+            addMessage({ role: 'user', content: text });
+            setTripData(prev => ({ ...prev, memberCount: count }));
+            setInputValue('');
+            setTimeout(() => {
+                addMessage({
+                    role: 'system',
+                    content: `Got it, ${count} members. How many days is the trip?`,
+                    type: 'ASK_TRIP_DAYS'
+                });
+            }, 600);
+        } else if (lastSystemMsg?.type === 'ASK_TRIP_DAYS') {
+            const days = parseInt(text);
+            if (isNaN(days) || days < 1) {
+                addMessage({ role: 'system', content: "Please enter a valid number of days.", type: 'ASK_TRIP_DAYS' });
+                return;
+            }
+            addMessage({ role: 'user', content: `${days} Days` });
+            setTripData(prev => ({ ...prev, tripDays: days }));
+            setInputValue('');
+            setTimeout(() => {
+                addMessage({
+                    role: 'system',
+                    content: `A ${days}-day trip. What is your total overall budget for this trip (in ₹)?`,
+                    type: 'ASK_BUDGET'
+                });
+            }, 600);
+        } else if (lastSystemMsg?.type === 'ASK_BUDGET') {
+            const budget = parseInt(text);
+            if (isNaN(budget) || budget <= 0) {
+                addMessage({ role: 'system', content: "Please enter a valid budget amount.", type: 'ASK_BUDGET' });
+                return;
+            }
+            addMessage({ role: 'user', content: `₹${budget}` });
+            setTripData(prev => ({ ...prev, totalBudget: budget }));
+            setInputValue('');
+            setTimeout(() => {
+                addMessage({
+                    role: 'system',
+                    content: `Your total budget is ₹${budget}. Do you have any destinations in mind already?`,
+                    type: 'ASK_HAVE_DESTINATIONS'
+                });
+            }, 600);
+        } else if (lastSystemMsg?.type === 'ASK_HOW_MANY_DESTINATIONS') {
+            const num = parseInt(text);
+            if (isNaN(num) || num < 2) {
+                addMessage({ role: 'system', content: "Please enter a valid number (at least 2 to compare).", type: 'ASK_HOW_MANY_DESTINATIONS' });
+                return;
+            }
+            addMessage({ role: 'user', content: text });
+            setTripData(prev => ({ ...prev, numDestinationsToCompare: num }));
+            setInputValue('');
+            setTimeout(() => {
+                addMessage({
+                    role: 'system',
+                    content: `Alright, please enter the details for destination #1.`,
+                    type: 'ASK_DESTINATION'
+                });
+            }, 600);
+        } else {
+            addMessage({ role: 'user', content: text });
+            setInputValue('');
+            setTimeout(() => {
+                addMessage({ role: 'system', content: "Please use the provided options or forms to continue." });
+            }, 500);
+        }
+    };
+
+    const handleHaveDestinationsSelect = (hasDestinations) => {
+        addMessage({ role: 'user', content: hasDestinations ? 'Yes' : 'No' });
+        setTripData(prev => ({ ...prev, hasDestinations }));
+
+        setTimeout(() => {
+            if (hasDestinations) {
+                addMessage({
+                    role: 'system',
+                    content: "How many destinations do you want to compare?",
+                    type: 'ASK_HOW_MANY_DESTINATIONS'
+                });
+            } else {
+                initiateSuggestion();
+            }
         }, 600);
     };
 
@@ -178,28 +283,68 @@ const ChatLayout = () => {
 
         addMessage({
             role: 'user',
-            content: `Added destination: ${dest.name}\nBudget: ₹${dest.budget} | Time: ${dest.travelTimeHours}h | Dist: ${dest.distanceKm}km | Safety: ${dest.safetyRating} | Weather: ${dest.weatherSuitability} | User Rating: ${dest.userRating}`
+            content: `Added: ${dest.name} (Budget: ₹${dest.budget})`
         });
 
         setTimeout(() => {
-            if (updatedDestinations.length >= 2) {
+            if (updatedDestinations.length < tripData.numDestinationsToCompare) {
                 addMessage({
                     role: 'system',
-                    content: `You have added ${updatedDestinations.length} destinations. You can add another one or rank the current destinations.`,
-                    type: 'ASK_NEXT_ACTION'
-                });
-            } else {
-                addMessage({
-                    role: 'system',
-                    content: `Please enter the details for destination #${updatedDestinations.length + 1}. You need at least 2 to compare.`,
+                    content: `Please enter the details for destination #${updatedDestinations.length + 1}.`,
                     type: 'ASK_DESTINATION'
                 });
+            } else {
+                initiateRanking(updatedDestinations);
             }
         }, 600);
     };
 
-    const initiateRanking = async () => {
-        addMessage({ role: 'user', content: "Rank my destinations" });
+    const initiateSuggestion = async () => {
+        setLoading(true);
+        addMessage({ role: 'system', content: "Finding the best destinations based on your constraints...", type: 'LOADING' });
+
+        try {
+            const payload = {
+                startLocation: tripData.startLocation,
+                modeOfTravel: tripData.modeOfTravel,
+                totalBudget: tripData.totalBudget,
+                memberCount: tripData.memberCount,
+                tripDays: tripData.tripDays
+            };
+
+            const { data } = await axios.post('/api/destinations/suggest', payload);
+
+            setMessages(prev => prev.filter(m => m.type !== 'LOADING'));
+
+            if (!data.success || data.rankedResults.length === 0) {
+                addMessage({
+                    role: 'system',
+                    content: "I couldn't find any destinations matching your exact constraints in the database. Try adjusting your budget or travel mode.",
+                    type: 'ERROR'
+                });
+            } else {
+                addMessage({
+                    role: 'system',
+                    content: `I found ${data.count} great options for you! Here are the recommended destinations ranked by suitability:`,
+                    type: 'RESULTS',
+                    resultsData: data
+                });
+            }
+
+        } catch (err) {
+            setMessages(prev => prev.filter(m => m.type !== 'LOADING'));
+            addMessage({
+                role: 'system',
+                content: "Sorry, there was an error suggesting destinations. Please try again.",
+                type: 'ERROR'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const initiateRanking = async (finalDestinations) => {
+        addMessage({ role: 'user', content: "Ready to rank my destinations" });
         setLoading(true);
         addMessage({ role: 'system', content: "Analyzing factors and ranking your destinations...", type: 'LOADING' });
 
@@ -207,7 +352,7 @@ const ChatLayout = () => {
             const payload = {
                 startLocation: tripData.startLocation,
                 modeOfTravel: tripData.modeOfTravel,
-                destinations: tripData.destinations.map(d => ({
+                destinations: finalDestinations.map(d => ({
                     ...d,
                     budget: Number(d.budget),
                     travelTimeHours: Number(d.travelTimeHours),
@@ -243,7 +388,9 @@ const ChatLayout = () => {
     };
 
     const resetFlow = () => {
-        setTripData({ startLocation: '', modeOfTravel: '', destinations: [] });
+        setTripData({
+            startLocation: '', modeOfTravel: '', companions: '', memberCount: 1, tripDays: 3, totalBudget: '', hasDestinations: null, numDestinationsToCompare: 0, destinations: []
+        });
         setMessages([
             {
                 id: Date.now(),
@@ -254,9 +401,8 @@ const ChatLayout = () => {
         ]);
     };
 
-    // Determine current expectation for input
-    const lastSystemMsg = [...messages].reverse().find(m => m.role === 'system');
-    const inputDisabled = loading || ['ASK_MODE', 'ASK_DESTINATION', 'ASK_NEXT_ACTION', 'RESULTS'].includes(lastSystemMsg?.type);
+    const lastSystemMsgForInput = [...messages].reverse().find(m => m.role === 'system');
+    const inputDisabled = loading || ['ASK_MODE', 'ASK_COMPANIONS', 'ASK_HAVE_DESTINATIONS', 'ASK_DESTINATION', 'RESULTS', 'ERROR'].includes(lastSystemMsgForInput?.type);
 
     return (
         <div className="flex flex-col h-screen w-full bg-white">
@@ -285,11 +431,42 @@ const ChatLayout = () => {
                                         <button
                                             key={mode}
                                             onClick={() => handleModeSelect(mode)}
-                                            className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary rounded-full text-sm font-medium transition-colors shadow-sm"
+                                            className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
                                         >
                                             {mode}
                                         </button>
                                     ))}
+                                </div>
+                            )}
+
+                            {msg.type === 'ASK_COMPANIONS' && (
+                                <div className="flex flex-wrap gap-2 mt-4">
+                                    {['Alone', 'With Family/Friends'].map(comp => (
+                                        <button
+                                            key={comp}
+                                            onClick={() => handleCompanionsSelect(comp)}
+                                            className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
+                                        >
+                                            {comp}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {msg.type === 'ASK_HAVE_DESTINATIONS' && (
+                                <div className="flex flex-wrap gap-2 mt-4">
+                                    <button
+                                        onClick={() => handleHaveDestinationsSelect(true)}
+                                        className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
+                                    >
+                                        Yes
+                                    </button>
+                                    <button
+                                        onClick={() => handleHaveDestinationsSelect(false)}
+                                        className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
+                                    >
+                                        No
+                                    </button>
                                 </div>
                             )}
 
@@ -299,33 +476,6 @@ const ChatLayout = () => {
                                     onAdd={handleDestinationAdd}
                                     isRemovable={false}
                                 />
-                            )}
-
-                            {msg.type === 'ASK_NEXT_ACTION' && (
-                                <div className="flex flex-wrap gap-3 mt-4">
-                                    <button
-                                        onClick={() => {
-                                            const activeDestCount = tripData.destinations.length;
-                                            addMessage({ role: 'user', content: 'Add another destination' });
-                                            setTimeout(() => {
-                                                addMessage({
-                                                    role: 'system',
-                                                    content: `Please enter the details for destination #${activeDestCount + 1}.`,
-                                                    type: 'ASK_DESTINATION'
-                                                });
-                                            }, 400);
-                                        }}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-sm font-medium transition-colors shadow-sm text-gray-700"
-                                    >
-                                        <PlusCircle className="w-4 h-4" /> Add Destination
-                                    </button>
-                                    <button
-                                        onClick={initiateRanking}
-                                        className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primaryHover text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                                    >
-                                        Rank Now
-                                    </button>
-                                </div>
                             )}
 
                             {msg.type === 'RESULTS' && msg.resultsData && (
