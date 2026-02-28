@@ -7,12 +7,12 @@ export default {
     theme: {
         extend: {
             colors: {
-                background: '#041e2e', // Very deep blue-teal
-                surface: '#093c52', // Dark ocean surface
-                primary: '#14b8a6', // Teal 500
-                primaryHover: '#0d9488', // Teal 600
-                text: '#f0fdfa', // Teal 50
-                textMuted: '#99f6e4' // Teal 200
+                background: '#ffffff', // White
+                surface: '#f9fafb', // Gray 50
+                primary: '#3b82f6', // Blue 500 (Antigravity accent)
+                primaryHover: '#2563eb', // Blue 600
+                text: '#111827', // Gray 900
+                textMuted: '#6b7280' // Gray 500
             },
             animation: {
                 'fade-in': 'fadeIn 0.5s ease-out',
