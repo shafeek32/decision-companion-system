@@ -1,38 +1,81 @@
 const express = require('express');
 const router = express.Router();
-const Destination = require('../models/Destination');
-const { evaluateDestinations } = require('../services/scoringService');
+const TripEvaluation = require('../models/Destination');
+const { evaluateDestinations, WEIGHTS } = require('../services/scoringService');
 
-// POST /api/evaluate
-// Accepts user constraints and returns ranked destinations
+/**
+ * POST /api/evaluate
+ * Body:
+ * {
+ *   startLocation: "Kochi",
+ *   modeOfTravel: "Train",
+ *   destinations: [
+ *     { name, budget, travelTimeHours, distanceKm, safetyRating, weatherSuitability, userRating, imageUrl? }
+ *   ]
+ * }
+ */
 router.post('/evaluate', async (req, res) => {
     try {
-        const {
-            startLocation,
-            budget,
-            days,
-            scope,
-            preferredType, // 'Hill station', 'Beach', 'City', 'Forest', 'No preference'
-            preferredWeather, // 'Cool', 'Warm', 'Moderate', 'No preference'
-            modeOfTravel, // 'Car', 'Train', 'Flight'
-            manualDestinations // Optional array of names
-        } = req.body;
+        const { startLocation, modeOfTravel, destinations } = req.body;
 
-        // Basic validation
-        if (!startLocation || !budget || !days || !modeOfTravel) {
-            return res.status(400).json({ error: 'Missing required constraints.' });
+        // --- Validation ---
+        if (!startLocation || typeof startLocation !== 'string') {
+            return res.status(400).json({ error: 'startLocation is required.' });
+        }
+        if (!modeOfTravel || typeof modeOfTravel !== 'string') {
+            return res.status(400).json({ error: 'modeOfTravel is required.' });
+        }
+        if (!Array.isArray(destinations) || destinations.length < 2) {
+            return res.status(400).json({ error: 'At least 2 destinations are required for comparison.' });
         }
 
-        // Fetch all destinations from DB
-        const destinations = await Destination.find({});
+        const REQUIRED_FIELDS = ['name', 'budget', 'travelTimeHours', 'distanceKm', 'safetyRating', 'weatherSuitability', 'userRating'];
+        for (let i = 0; i < destinations.length; i++) {
+            const d = destinations[i];
+            for (const field of REQUIRED_FIELDS) {
+                if (d[field] === undefined || d[field] === null || d[field] === '') {
+                    return res.status(400).json({ error: `Destination #${i + 1} is missing field: ${field}` });
+                }
+            }
+            // Validate rating ranges
+            for (const ratingField of ['safetyRating', 'weatherSuitability', 'userRating']) {
+                const val = Number(d[ratingField]);
+                if (isNaN(val) || val < 1 || val > 10) {
+                    return res.status(400).json({ error: `${ratingField} in destination #${i + 1} must be between 1 and 10.` });
+                }
+            }
+            // Coerce all numeric fields
+            d.budget = Number(d.budget);
+            d.travelTimeHours = Number(d.travelTimeHours);
+            d.distanceKm = Number(d.distanceKm);
+            d.safetyRating = Number(d.safetyRating);
+            d.weatherSuitability = Number(d.weatherSuitability);
+            d.userRating = Number(d.userRating);
+        }
 
-        // Calculate and Rank
-        const constraints = { startLocation, budget: Number(budget), days: Number(days), scope, preferredType, preferredWeather, modeOfTravel, manualDestinations };
-        const results = evaluateDestinations(destinations, constraints);
+        // --- Run WSM Scoring ---
+        const results = evaluateDestinations(destinations);
 
+        // --- Persist to DB (async, non-blocking for response) ---
+        const trip = new TripEvaluation({
+            startLocation,
+            modeOfTravel,
+            destinations,
+            results: results.map(r => ({
+                name: r.name,
+                score: r.score,
+                rank: r.rank,
+                scoreBreakdown: r.scoreBreakdown
+            }))
+        });
+        trip.save().catch(err => console.error('DB save error (non-fatal):', err.message));
+
+        // --- Return Response ---
         res.json({
             success: true,
-            results,
+            weightsUsed: WEIGHTS,
+            winner: results[0],
+            rankedResults: results,
             count: results.length
         });
 
@@ -42,14 +85,19 @@ router.post('/evaluate', async (req, res) => {
     }
 });
 
-// GET /api/destinations
-// Simple endpoint to list available destinations (optional, for debugging/UI)
-router.get('/destinations', async (req, res) => {
+/**
+ * GET /api/history
+ * Returns the last 10 trip evaluations.
+ */
+router.get('/history', async (req, res) => {
     try {
-        const destinations = await Destination.find({});
-        res.json(destinations);
+        const history = await TripEvaluation.find({})
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .select('startLocation modeOfTravel createdAt results');
+        res.json(history);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch destinations' });
+        res.status(500).json({ error: 'Failed to fetch history.' });
     }
 });
 

@@ -1,27 +1,32 @@
 const mongoose = require('mongoose');
 
-const distanceSchema = new mongoose.Schema({
-    Kochi: { type: Number, required: true },
-    Trivandrum: { type: Number, required: true },
-    Calicut: { type: Number, required: true }
+// Stores a single evaluated destination input from user
+const destinationInputSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    budget: { type: Number, required: true },          // Total estimated cost in ₹
+    travelTimeHours: { type: Number, required: true }, // One-way travel time in hours
+    distanceKm: { type: Number, required: true },      // Distance in km
+    safetyRating: { type: Number, min: 1, max: 10, required: true },
+    weatherSuitability: { type: Number, min: 1, max: 10, required: true },
+    userRating: { type: Number, min: 1, max: 10, required: true },
+    imageUrl: { type: String, default: '' }
 }, { _id: false });
 
-const destinationSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    scope: { type: String, enum: ['Inside Kerala', 'Outside Kerala (India)', 'Outside India'], required: true },
-    landType: { type: String, enum: ['Hill station', 'Beach', 'City', 'Forest'], required: true },
-    weather: { type: String, enum: ['Cool', 'Warm', 'Moderate'], required: true },
-    distanceFromMajorCities: { type: distanceSchema, required: true },
-    hotelCostPerDay: { type: Number, required: true },
-    foodCostPerDay: { type: Number, required: true },
-    baseTravelCost: {
-        Bike: { type: Number, required: true },
-        Bus: { type: Number, required: true },
-        Car: { type: Number, required: true },
-        Train: { type: Number, required: true },
-        Flight: { type: Number, required: true }
-    },
-    imageUrl: { type: String }
+// Stores a ranked result entry
+const rankedResultSchema = new mongoose.Schema({
+    name: { type: String },
+    score: { type: Number },
+    rank: { type: Number },
+    scoreBreakdown: { type: mongoose.Schema.Types.Mixed }
+}, { _id: false });
+
+// Stores a full trip evaluation session
+const tripEvaluationSchema = new mongoose.Schema({
+    startLocation: { type: String, required: true },
+    modeOfTravel: { type: String, required: true },
+    destinations: [destinationInputSchema],
+    results: [rankedResultSchema],
+    createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Destination', destinationSchema);
+module.exports = mongoose.model('TripEvaluation', tripEvaluationSchema);

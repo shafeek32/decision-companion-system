@@ -1,196 +1,193 @@
 /**
- * Scoring Service for the Travel Decision Companion
+ * Smart Destination Decision System — Scoring Service
+ * Uses Weighted Sum Model (WSM) with min-max normalization.
+ *
+ * SYSTEM WEIGHTS (fixed, not user-configurable):
+ *   Budget            → 0.35  (cost-type: lower is better)
+ *   Travel Time       → 0.20  (cost-type: lower is better)
+ *   Distance          → 0.15  (cost-type: lower is better)
+ *   Safety Rating     → 0.15  (benefit-type: higher is better)
+ *   Weather Suit.     → 0.10  (benefit-type: higher is better)
+ *   User Rating       → 0.05  (benefit-type: higher is better)
  */
 
-// Calculate raw estimated trip cost
-const calculateTotalCost = (destination, days, modeOfTravel) => {
-    const travelCost = destination.baseTravelCost[modeOfTravel] || 0;
-    const hotelCost = days * destination.hotelCostPerDay;
-    const foodCost = days * destination.foodCostPerDay;
-    return travelCost + hotelCost + foodCost;
+const WEIGHTS = {
+    budget: 0.35,
+    travelTimeHours: 0.20,
+    distanceKm: 0.15,
+    safetyRating: 0.15,
+    weatherSuitability: 0.10,
+    userRating: 0.05
 };
 
-// Generate rule-based human-readable explanation
-const generateExplanation = (destination, constraints, scoreDetails) => {
-    let explanation = `Based on your ₹${constraints.budget} budget and ${constraints.days}-day trip from ${constraints.startLocation}, ${destination.name} is an excellent choice. `;
+// Cost-type factors: lower raw value = better outcome
+const COST_FACTORS = ['budget', 'travelTimeHours', 'distanceKm'];
 
-    // Cost aspect
-    const budgetPercentage = (scoreDetails.estimatedCost / constraints.budget) * 100;
-    if (budgetPercentage < 50) {
-        explanation += `It is highly affordable, taking up less than half of your budget. `;
-    } else if (budgetPercentage < 85) {
-        explanation += `It fits comfortably within your budget. `;
+// Benefit-type factors: higher raw value = better outcome
+const BENEFIT_FACTORS = ['safetyRating', 'weatherSuitability', 'userRating'];
+
+/**
+ * Min-max normalize a value within a range.
+ * For cost-type: inverted so that lower value → score closer to 1.
+ * For benefit-type: direct so that higher value → score closer to 1.
+ */
+const normalize = (value, min, max, isCost) => {
+    if (max === min) return 1; // All values are identical → perfect score for all
+    if (isCost) {
+        return (max - value) / (max - min);
     } else {
-        explanation += `It maximizes your budget without exceeding it. `;
+        return (value - min) / (max - min);
     }
-
-    // Preference aspect
-    const prefs = [];
-    if (constraints.preferredType && constraints.preferredType !== 'No preference') {
-        if (destination.landType === constraints.preferredType) {
-            prefs.push(`your preference for ${constraints.preferredType.toLowerCase()}s`);
-        }
-    }
-    if (constraints.preferredWeather && constraints.preferredWeather !== 'No preference') {
-        if (destination.weather === constraints.preferredWeather) {
-            prefs.push(`${constraints.preferredWeather.toLowerCase()} weather`);
-        }
-    }
-
-    if (prefs.length > 0) {
-        explanation += `It beautifully matches ${prefs.join(' and ')}. `;
-    } else if (constraints.preferredType || constraints.preferredWeather) {
-        explanation += `While it may not perfectly match all your specific type or weather preferences, its overall value and convenience make it a top contender. `;
-    } else {
-        explanation += `Since you were flexible on the type of destination, its strong overall value makes it a top contender. `;
-    }
-
-    // Distance aspect
-    const distance = destination.distanceFromMajorCities[constraints.startLocation];
-    if (distance) {
-        if (distance < 150) {
-            explanation += `At just ${distance}km away, it is very convenient for a short trip.`;
-        } else if (distance < 500) {
-            explanation += `The ${distance}km distance is manageable for your timeframe.`;
-        } else if (constraints.days <= 2) {
-            explanation += `Though it's ${distance}km away, the destination quality makes the longer travel worthwhile if planned well.`;
-        }
-    }
-
-    return explanation.trim();
 };
 
-const evaluateDestinations = (destinations, constraints) => {
-    const {
-        startLocation,
-        budget,
-        days,
-        scope,
-        preferredType,
-        preferredWeather,
-        modeOfTravel
-    } = constraints;
+/**
+ * Generate a human-readable explanation of why the winner was chosen.
+ */
+const generateExplanation = (winner, allResults) => {
+    const breakdown = winner.scoreBreakdown;
+    const points = [];
 
-    // 1. Hard Filtering (Constraints)
-    const validDestinations = [];
-    destinations.forEach(dest => {
-        // Always filter out the starting location itself
-        if (dest.name.toLowerCase() === startLocation.toLowerCase()) return;
+    // Budget
+    if (breakdown.budget.normalized >= 0.7) {
+        points.push(`✅ **Highly affordable** — its cost (₹${winner.input.budget.toLocaleString()}) offers excellent value, well within a comfortable range compared to alternatives.`);
+    } else if (breakdown.budget.normalized >= 0.4) {
+        points.push(`✅ **Reasonably priced** — its cost (₹${winner.input.budget.toLocaleString()}) is competitive among the destinations evaluated.`);
+    } else {
+        points.push(`⚠️ **Higher cost** (₹${winner.input.budget.toLocaleString()}), but its advantages in other areas compensate.`);
+    }
 
-        // If manual list provided, only process those
-        if (constraints.manualDestinations && constraints.manualDestinations.length > 0) {
-            const isTarget = constraints.manualDestinations.some(
-                targetName => targetName.toLowerCase() === dest.name.toLowerCase()
-            );
-            if (!isTarget) return;
-        }
+    // Travel time
+    if (breakdown.travelTimeHours.normalized >= 0.7) {
+        points.push(`✅ **Quick to reach** — travel time of ${winner.input.travelTimeHours}h is among the shortest of all options.`);
+    } else if (breakdown.travelTimeHours.normalized >= 0.4) {
+        points.push(`✅ **Moderate travel time** of ${winner.input.travelTimeHours}h — acceptable for most itineraries.`);
+    }
 
-        // Filter by scope if provided (ONLY in auto mode or if manual match found)
-        if (!constraints.manualDestinations && scope && dest.scope !== scope) return;
+    // Safety
+    if (breakdown.safetyRating.normalized >= 0.7) {
+        points.push(`✅ **High safety rating** of ${winner.input.safetyRating}/10 — a standout in this comparison.`);
+    } else if (breakdown.safetyRating.normalized >= 0.4) {
+        points.push(`✅ **Adequate safety rating** of ${winner.input.safetyRating}/10 — meets standard expectations.`);
+    }
 
-        // Calculate Cost
-        const totalCost = calculateTotalCost(dest, days, modeOfTravel);
+    // Weather
+    if (breakdown.weatherSuitability.normalized >= 0.7) {
+        points.push(`✅ **Excellent weather suitability** score of ${winner.input.weatherSuitability}/10 for your travel period.`);
+    }
 
-        // Filter by budget
-        if (totalCost > budget) return;
+    // User rating
+    if (breakdown.userRating.normalized >= 0.7) {
+        points.push(`✅ **Top-rated** with a user rating of ${winner.input.userRating}/10 — highly recommended by travellers.`);
+    } else if (breakdown.userRating.normalized >= 0.4) {
+        points.push(`✅ **Well-rated** by travellers at ${winner.input.userRating}/10.`);
+    }
 
-        validDestinations.push({
-            ...dest.toObject(),
-            estimatedCost: totalCost
+    // Overall summary
+    const winnerScore = (winner.score * 100).toFixed(1);
+    const secondPlace = allResults[1];
+    if (secondPlace) {
+        const gap = ((winner.score - secondPlace.score) * 100).toFixed(1);
+        points.push(`🏆 **Final Score: ${winnerScore}%** — beating the runner-up (${secondPlace.name}) by ${gap} points.`);
+    } else {
+        points.push(`🏆 **Final Score: ${winnerScore}%** — the clear best choice.`);
+    }
+
+    return points;
+};
+
+/**
+ * Main evaluation function.
+ * @param {Array} destinations - Array of destination input objects from the user
+ * @returns {Array} Ranked results with scores and explanations
+ */
+const evaluateDestinations = (destinations) => {
+    if (!destinations || destinations.length === 0) return [];
+
+    // Edge case: single destination
+    if (destinations.length === 1) {
+        const d = destinations[0];
+        const breakdown = {};
+        [...COST_FACTORS, ...BENEFIT_FACTORS].forEach(factor => {
+            breakdown[factor] = {
+                rawValue: d[factor],
+                normalized: 1,
+                weight: WEIGHTS[factor],
+                contribution: WEIGHTS[factor]
+            };
         });
+        return [{
+            name: d.name,
+            rank: 1,
+            score: 1,
+            input: d,
+            scoreBreakdown: breakdown,
+            explanationPoints: generateExplanation({ name: d.name, score: 1, input: d, scoreBreakdown: breakdown }, [])
+        }];
+    }
+
+    // Step 1: Compute min and max for each factor across all destinations
+    const stats = {};
+    [...COST_FACTORS, ...BENEFIT_FACTORS].forEach(factor => {
+        const values = destinations.map(d => d[factor]);
+        stats[factor] = {
+            min: Math.min(...values),
+            max: Math.max(...values)
+        };
     });
 
-    if (validDestinations.length === 0) return [];
+    // Step 2: Score each destination
+    const scored = destinations.map(d => {
+        const breakdown = {};
+        let totalScore = 0;
 
-    // Base weights
-    let weightCost = 0.3;
-    let weightDistance = 0.2;
-    let weightType = 0.25;
-    let weightWeather = 0.25;
+        COST_FACTORS.forEach(factor => {
+            const { min, max } = stats[factor];
+            const normalized = normalize(d[factor], min, max, true);
+            const contribution = normalized * WEIGHTS[factor];
+            totalScore += contribution;
+            breakdown[factor] = {
+                rawValue: d[factor],
+                normalized: parseFloat(normalized.toFixed(4)),
+                weight: WEIGHTS[factor],
+                contribution: parseFloat(contribution.toFixed(4))
+            };
+        });
 
-    // Dynamic weight adjustments rules
-    // Rule 1: Tight budget
-    // If the average valid destination takes up > 80% of budget, prioritize cost
-    const avgCost = validDestinations.reduce((sum, d) => sum + d.estimatedCost, 0) / validDestinations.length;
-    if (avgCost > budget * 0.8) {
-        weightCost += 0.2;
-        weightType -= 0.1;
-        weightWeather -= 0.1;
-    }
-
-    // Rule 2: Short trip (<= 2 days) -> prioritize distance
-    if (days <= 2) {
-        weightDistance += 0.2;
-        weightType -= 0.1;
-        weightWeather -= 0.1;
-    }
-
-    // Rule 3: No preferences -> distribute weights to cost and distance
-    if (preferredType === 'No preference') {
-        weightCost += weightType / 2;
-        weightDistance += weightType / 2;
-        weightType = 0;
-    }
-    if (preferredWeather === 'No preference') {
-        weightCost += weightWeather / 2;
-        weightDistance += weightWeather / 2;
-        weightWeather = 0;
-    }
-
-    // Normalize weights to ensure sum = 1
-    const totalWeight = weightCost + weightDistance + weightType + weightWeather;
-    weightCost /= totalWeight;
-    weightDistance /= totalWeight;
-    weightType /= totalWeight;
-    weightWeather /= totalWeight;
-
-    // Determine max values for normalization
-    const maxCost = Math.max(...validDestinations.map(d => d.estimatedCost), 1);
-    const maxDist = Math.max(...validDestinations.map(d => d.distanceFromMajorCities[startLocation] || 500), 1);
-
-    // 2. Soft Scoring Model
-    const scoredDestinations = validDestinations.map(dest => {
-        // Budget Fit: Lower cost is better (1 to 0)
-        // We normalize using budget instead of maxCost so we measure how much of the budget is saved
-        const budgetFit = 1 - (dest.estimatedCost / budget);
-
-        // Distance Suitability: Lower distance is better
-        const dist = dest.distanceFromMajorCities[startLocation] || maxDist;
-        const distanceSuitability = 1 - (dist / (dist + 500)); // Non-linear normalization to keep it between 0-1
-
-        // Preference Match: 1 for exact match, 0 for mismatch
-        const typeMatch = (preferredType === 'No preference' || dest.landType === preferredType) ? 1 : 0;
-        const weatherMatch = (preferredWeather === 'No preference' || dest.weather === preferredWeather) ? 1 : 0;
-
-        // Calculate Weighted Score
-        const score = (weightCost * budgetFit) +
-            (weightDistance * distanceSuitability) +
-            (weightType * typeMatch) +
-            (weightWeather * weatherMatch);
-
-        const scoreDetails = {
-            budgetFit,
-            distanceSuitability,
-            typeMatch,
-            weatherMatch,
-            estimatedCost: dest.estimatedCost
-        };
+        BENEFIT_FACTORS.forEach(factor => {
+            const { min, max } = stats[factor];
+            const normalized = normalize(d[factor], min, max, false);
+            const contribution = normalized * WEIGHTS[factor];
+            totalScore += contribution;
+            breakdown[factor] = {
+                rawValue: d[factor],
+                normalized: parseFloat(normalized.toFixed(4)),
+                weight: WEIGHTS[factor],
+                contribution: parseFloat(contribution.toFixed(4))
+            };
+        });
 
         return {
-            destination: dest,
-            estimatedCost: dest.estimatedCost,
-            score: parseFloat(score.toFixed(4)),
-            scoreDetails,
-            explanation: generateExplanation(dest, constraints, scoreDetails)
+            name: d.name,
+            score: parseFloat(totalScore.toFixed(4)),
+            input: d,
+            scoreBreakdown: breakdown
         };
     });
 
-    // Rank descending by score
-    scoredDestinations.sort((a, b) => b.score - a.score);
+    // Step 3: Sort descending by score
+    scored.sort((a, b) => b.score - a.score);
 
-    return scoredDestinations;
+    // Step 4: Assign ranks and generate explanations
+    const ranked = scored.map((item, index) => ({
+        ...item,
+        rank: index + 1,
+        explanationPoints: index === 0 ? generateExplanation(item, scored) : []
+    }));
+
+    return ranked;
 };
 
 module.exports = {
-    evaluateDestinations
+    evaluateDestinations,
+    WEIGHTS
 };
