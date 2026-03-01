@@ -107,7 +107,7 @@ router.get('/history', async (req, res) => {
  */
 router.post('/destinations/suggest', async (req, res) => {
     try {
-        const { startLocation, modeOfTravel, totalBudget, memberCount, tripDays = 3 } = req.body;
+        const { startLocation, modeOfTravel, totalBudget, memberCount, tripDays = 3, landType } = req.body;
 
         if (!startLocation || !modeOfTravel || !totalBudget || !memberCount) {
             return res.status(400).json({ error: 'Missing required fields.' });
@@ -118,6 +118,10 @@ router.post('/destinations/suggest', async (req, res) => {
 
         // Filter destinations that fit the budget
         const validDestinations = allDestinations.filter(dest => {
+            if (landType && landType !== 'Any' && dest.landType !== landType) {
+                return false;
+            }
+
             // Assume 2 people per hotel room
             const numRooms = Math.ceil(memberCount / 2);
             const hotelCost = dest.hotelCostPerDay * tripDays * numRooms;

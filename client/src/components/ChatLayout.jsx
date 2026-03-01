@@ -118,7 +118,8 @@ const ChatLayout = () => {
         totalBudget: '',
         hasDestinations: null,
         numDestinationsToCompare: 0,
-        destinations: []
+        destinations: [],
+        landType: ''
     });
     const [loading, setLoading] = useState(false);
 
@@ -272,8 +273,21 @@ const ChatLayout = () => {
                     type: 'ASK_HOW_MANY_DESTINATIONS'
                 });
             } else {
-                initiateSuggestion();
+                addMessage({
+                    role: 'system',
+                    content: "What kind of experience are you looking for?",
+                    type: 'ASK_LAND_TYPE'
+                });
             }
+        }, 600);
+    };
+
+    const handleLandTypeSelect = (type) => {
+        addMessage({ role: 'user', content: type });
+        setTripData(prev => ({ ...prev, landType: type }));
+
+        setTimeout(() => {
+            initiateSuggestion(type);
         }, 600);
     };
 
@@ -299,7 +313,7 @@ const ChatLayout = () => {
         }, 600);
     };
 
-    const initiateSuggestion = async () => {
+    const initiateSuggestion = async (selectedLandType = null) => {
         setLoading(true);
         addMessage({ role: 'system', content: "Finding the best destinations based on your constraints...", type: 'LOADING' });
 
@@ -309,7 +323,8 @@ const ChatLayout = () => {
                 modeOfTravel: tripData.modeOfTravel,
                 totalBudget: tripData.totalBudget,
                 memberCount: tripData.memberCount,
-                tripDays: tripData.tripDays
+                tripDays: tripData.tripDays,
+                landType: selectedLandType || tripData.landType
             };
 
             const { data } = await axios.post('/api/destinations/suggest', payload);
@@ -389,7 +404,7 @@ const ChatLayout = () => {
 
     const resetFlow = () => {
         setTripData({
-            startLocation: '', modeOfTravel: '', companions: '', memberCount: 1, tripDays: 3, totalBudget: '', hasDestinations: null, numDestinationsToCompare: 0, destinations: []
+            startLocation: '', modeOfTravel: '', companions: '', memberCount: 1, tripDays: 3, totalBudget: '', hasDestinations: null, numDestinationsToCompare: 0, destinations: [], landType: ''
         });
         setMessages([
             {
@@ -402,7 +417,7 @@ const ChatLayout = () => {
     };
 
     const lastSystemMsgForInput = [...messages].reverse().find(m => m.role === 'system');
-    const inputDisabled = loading || ['ASK_MODE', 'ASK_COMPANIONS', 'ASK_HAVE_DESTINATIONS', 'ASK_DESTINATION', 'RESULTS', 'ERROR'].includes(lastSystemMsgForInput?.type);
+    const inputDisabled = loading || ['ASK_MODE', 'ASK_COMPANIONS', 'ASK_HAVE_DESTINATIONS', 'ASK_LAND_TYPE', 'ASK_DESTINATION', 'RESULTS', 'ERROR'].includes(lastSystemMsgForInput?.type);
 
     return (
         <div className="flex flex-col h-screen w-full bg-white">
@@ -412,9 +427,14 @@ const ChatLayout = () => {
                     <Navigation className="w-6 h-6 text-primary" />
                     Decision Companion
                 </h1>
-                {tripData.destinations.length > 0 && (
-                    <button onClick={resetFlow} className="text-sm font-medium text-gray-500 hover:text-gray-800 transition">
-                        Reset Conversation
+                {messages.length > 1 && (
+                    <button
+                        onClick={resetFlow}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 hover:text-gray-900 rounded-lg transition-colors"
+                        title="Start New Conversation"
+                    >
+                        <PlusCircle className="w-4 h-4" />
+                        <span className="hidden sm:inline">New Chat</span>
                     </button>
                 )}
             </header>
@@ -467,6 +487,20 @@ const ChatLayout = () => {
                                     >
                                         No
                                     </button>
+                                </div>
+                            )}
+
+                            {msg.type === 'ASK_LAND_TYPE' && (
+                                <div className="flex flex-wrap gap-2 mt-4">
+                                    {['Hill station', 'Beach', 'City', 'Forest', 'Any'].map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => handleLandTypeSelect(type)}
+                                            className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
                                 </div>
                             )}
 
