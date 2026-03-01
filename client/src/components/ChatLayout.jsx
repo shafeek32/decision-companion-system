@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, MapPin, Navigation, PlusCircle, Trash2 } from 'lucide-react';
+import { Send, MapPin, Navigation, PlusCircle, Trash2, Undo2 } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import Results from './Results';
 
@@ -119,8 +119,10 @@ const ChatLayout = () => {
         hasDestinations: null,
         numDestinationsToCompare: 0,
         destinations: [],
-        landType: ''
+        landType: '',
+        isOutsideIndia: null
     });
+    const [history, setHistory] = useState([]); // Store previous tripData states
     const [loading, setLoading] = useState(false);
 
     // Auto-scroll ref
@@ -137,6 +139,7 @@ const ChatLayout = () => {
     };
 
     const handleModeSelect = (mode) => {
+        setHistory(prev => [...prev, { ...tripData }]);
         addMessage({ role: 'user', content: mode });
         setTripData(prev => ({ ...prev, modeOfTravel: mode }));
 
@@ -150,6 +153,7 @@ const ChatLayout = () => {
     };
 
     const handleCompanionsSelect = (companionsType) => {
+        setHistory(prev => [...prev, { ...tripData }]);
         addMessage({ role: 'user', content: companionsType });
         setTripData(prev => ({ ...prev, companions: companionsType }));
 
@@ -178,6 +182,7 @@ const ChatLayout = () => {
         const lastSystemMsg = [...messages].reverse().find(m => m.role === 'system');
 
         if (lastSystemMsg?.type === 'ASK_LOCATION') {
+            setHistory(prev => [...prev, { ...tripData }]);
             addMessage({ role: 'user', content: text });
             setTripData(prev => ({ ...prev, startLocation: text }));
             setInputValue('');
@@ -194,6 +199,7 @@ const ChatLayout = () => {
                 addMessage({ role: 'system', content: "Please enter a valid number of members.", type: 'ASK_MEMBER_COUNT' });
                 return;
             }
+            setHistory(prev => [...prev, { ...tripData }]);
             addMessage({ role: 'user', content: text });
             setTripData(prev => ({ ...prev, memberCount: count }));
             setInputValue('');
@@ -210,6 +216,7 @@ const ChatLayout = () => {
                 addMessage({ role: 'system', content: "Please enter a valid number of days.", type: 'ASK_TRIP_DAYS' });
                 return;
             }
+            setHistory(prev => [...prev, { ...tripData }]);
             addMessage({ role: 'user', content: `${days} Days` });
             setTripData(prev => ({ ...prev, tripDays: days }));
             setInputValue('');
@@ -226,6 +233,7 @@ const ChatLayout = () => {
                 addMessage({ role: 'system', content: "Please enter a valid budget amount.", type: 'ASK_BUDGET' });
                 return;
             }
+            setHistory(prev => [...prev, { ...tripData }]);
             addMessage({ role: 'user', content: `₹${budget}` });
             setTripData(prev => ({ ...prev, totalBudget: budget }));
             setInputValue('');
@@ -242,6 +250,7 @@ const ChatLayout = () => {
                 addMessage({ role: 'system', content: "Please enter a valid number (at least 2 to compare).", type: 'ASK_HOW_MANY_DESTINATIONS' });
                 return;
             }
+            setHistory(prev => [...prev, { ...tripData }]);
             addMessage({ role: 'user', content: text });
             setTripData(prev => ({ ...prev, numDestinationsToCompare: num }));
             setInputValue('');
@@ -262,11 +271,26 @@ const ChatLayout = () => {
     };
 
     const handleHaveDestinationsSelect = (hasDestinations) => {
+        setHistory(prev => [...prev, { ...tripData }]);
         addMessage({ role: 'user', content: hasDestinations ? 'Yes' : 'No' });
         setTripData(prev => ({ ...prev, hasDestinations }));
 
         setTimeout(() => {
-            if (hasDestinations) {
+            addMessage({
+                role: 'system',
+                content: "Are you planning to travel outside India?",
+                type: 'ASK_OUTSIDE_INDIA'
+            });
+        }, 600);
+    };
+
+    const handleOutsideIndiaSelect = (isOutside) => {
+        setHistory(prev => [...prev, { ...tripData }]);
+        addMessage({ role: 'user', content: isOutside ? 'Yes (Outside India)' : 'No (Inside India)' });
+        setTripData(prev => ({ ...prev, isOutsideIndia: isOutside }));
+
+        setTimeout(() => {
+            if (tripData.hasDestinations) {
                 addMessage({
                     role: 'system',
                     content: "How many destinations do you want to compare?",
@@ -283,6 +307,7 @@ const ChatLayout = () => {
     };
 
     const handleLandTypeSelect = (type) => {
+        setHistory(prev => [...prev, { ...tripData }]);
         addMessage({ role: 'user', content: type });
         setTripData(prev => ({ ...prev, landType: type }));
 
@@ -292,6 +317,7 @@ const ChatLayout = () => {
     };
 
     const handleDestinationAdd = (dest) => {
+        setHistory(prev => [...prev, { ...tripData }]);
         const updatedDestinations = [...tripData.destinations, dest];
         setTripData(prev => ({ ...prev, destinations: updatedDestinations }));
 
@@ -324,7 +350,8 @@ const ChatLayout = () => {
                 totalBudget: tripData.totalBudget,
                 memberCount: tripData.memberCount,
                 tripDays: tripData.tripDays,
-                landType: selectedLandType || tripData.landType
+                landType: selectedLandType || tripData.landType,
+                isOutsideIndia: tripData.isOutsideIndia
             };
 
             const { data } = await axios.post('/api/destinations/suggest', payload);
@@ -404,8 +431,9 @@ const ChatLayout = () => {
 
     const resetFlow = () => {
         setTripData({
-            startLocation: '', modeOfTravel: '', companions: '', memberCount: 1, tripDays: 3, totalBudget: '', hasDestinations: null, numDestinationsToCompare: 0, destinations: [], landType: ''
+            startLocation: '', modeOfTravel: '', companions: '', memberCount: 1, tripDays: 3, totalBudget: '', hasDestinations: null, numDestinationsToCompare: 0, destinations: [], landType: '', isOutsideIndia: null
         });
+        setHistory([]);
         setMessages([
             {
                 id: Date.now(),
@@ -416,8 +444,31 @@ const ChatLayout = () => {
         ]);
     };
 
+    const handleGoBack = () => {
+        if (messages.length <= 1 || history.length === 0 || loading) return;
+
+        // Restore previous data state
+        const previousTripData = history[history.length - 1];
+        setTripData(previousTripData);
+        setHistory(prev => prev.slice(0, -1));
+
+        // Pop last user message and the system message that followed it
+        setMessages(prev => {
+            const newMsgs = [...prev];
+            // Remove messages until we hit the last system prompt that asked for input
+            while (newMsgs.length > 1) {
+                const popped = newMsgs.pop();
+                // Usually it's [..., System_Question, User_Answer, System_Next_Question]
+                if (popped.role === 'user') {
+                    break;
+                }
+            }
+            return newMsgs;
+        });
+    };
+
     const lastSystemMsgForInput = [...messages].reverse().find(m => m.role === 'system');
-    const inputDisabled = loading || ['ASK_MODE', 'ASK_COMPANIONS', 'ASK_HAVE_DESTINATIONS', 'ASK_LAND_TYPE', 'ASK_DESTINATION', 'RESULTS', 'ERROR'].includes(lastSystemMsgForInput?.type);
+    const inputDisabled = loading || ['ASK_MODE', 'ASK_COMPANIONS', 'ASK_HAVE_DESTINATIONS', 'ASK_OUTSIDE_INDIA', 'ASK_LAND_TYPE', 'ASK_DESTINATION', 'RESULTS', 'ERROR'].includes(lastSystemMsgForInput?.type);
 
     return (
         <div className="flex flex-col h-screen w-full bg-white">
@@ -427,16 +478,28 @@ const ChatLayout = () => {
                     <Navigation className="w-6 h-6 text-primary" />
                     Decision Companion
                 </h1>
-                {messages.length > 1 && (
-                    <button
-                        onClick={resetFlow}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 hover:text-gray-900 rounded-lg transition-colors"
-                        title="Start New Conversation"
-                    >
-                        <PlusCircle className="w-4 h-4" />
-                        <span className="hidden sm:inline">New Chat</span>
-                    </button>
-                )}
+                <div className="flex items-center gap-2">
+                    {messages.length > 2 && !loading && (
+                        <button
+                            onClick={handleGoBack}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors shadow-sm"
+                            title="Go Back One Step"
+                        >
+                            <Undo2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Back</span>
+                        </button>
+                    )}
+                    {messages.length > 1 && (
+                        <button
+                            onClick={resetFlow}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 hover:text-gray-900 rounded-lg transition-colors"
+                            title="Start New Conversation"
+                        >
+                            <PlusCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">New Chat</span>
+                        </button>
+                    )}
+                </div>
             </header>
 
             {/* Chat Messages Area */}
@@ -483,6 +546,23 @@ const ChatLayout = () => {
                                     </button>
                                     <button
                                         onClick={() => handleHaveDestinationsSelect(false)}
+                                        className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
+                                    >
+                                        No
+                                    </button>
+                                </div>
+                            )}
+
+                            {msg.type === 'ASK_OUTSIDE_INDIA' && (
+                                <div className="flex flex-wrap gap-2 mt-4">
+                                    <button
+                                        onClick={() => handleOutsideIndiaSelect(true)}
+                                        className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
+                                    >
+                                        Yes
+                                    </button>
+                                    <button
+                                        onClick={() => handleOutsideIndiaSelect(false)}
                                         className="px-4 py-2 bg-white border border-gray-200 hover:border-primary hover:text-primary text-gray-800 rounded-full text-sm font-medium transition-colors shadow-sm"
                                     >
                                         No

@@ -107,7 +107,7 @@ router.get('/history', async (req, res) => {
  */
 router.post('/destinations/suggest', async (req, res) => {
     try {
-        const { startLocation, modeOfTravel, totalBudget, memberCount, tripDays = 3, landType } = req.body;
+        const { startLocation, modeOfTravel, totalBudget, memberCount, tripDays = 3, landType, isOutsideIndia } = req.body;
 
         if (!startLocation || !modeOfTravel || !totalBudget || !memberCount) {
             return res.status(400).json({ error: 'Missing required fields.' });
@@ -120,6 +120,12 @@ router.post('/destinations/suggest', async (req, res) => {
         const validDestinations = allDestinations.filter(dest => {
             if (landType && landType !== 'Any' && dest.landType !== landType) {
                 return false;
+            }
+
+            if (isOutsideIndia !== undefined && isOutsideIndia !== null) {
+                const isDestOutside = dest.scope === 'Outside India';
+                if (isOutsideIndia && !isDestOutside) return false;
+                if (!isOutsideIndia && isDestOutside) return false;
             }
 
             // Assume 2 people per hotel room
