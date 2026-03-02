@@ -6,13 +6,6 @@ Have you ever tried planning a trip with friends or family, only to get complete
 
 That's exactly why this project exists. It's an intelligent, MERN-stack travel assistant disguised as a friendly chat interface. You tell it your budget, how you're traveling, and who you're going with, and it mathematically evaluates and ranks the absolute best destinations for your specific situation.
 
-## System Architecture
-
-![System Architecture](architecture.svg)
-
-This diagram illustrates the high-level flow of the Decision Companion System. It shows how the conversational React frontend collects user constraints (budget, companions, travel mode) and sends them to the Node/Express backend. The backend then queries the MongoDB catalog, falls back to the Wikipedia API if needed, and uses the scoring service to crunch the numbers before returning the ranked recommendations to the user.
-
----
 
 ## Your understanding of the problem
 
