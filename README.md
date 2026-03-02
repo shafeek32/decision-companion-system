@@ -19,8 +19,8 @@ The core problem isn't just suggesting destinations; it's about **multi-criteria
 To make the math work predictably in this version, we assumed a few things:
 *   **Fixed Scoring Weights:** We assume everyone values budget the most (35%), followed by travel time (20%), distance (15%), safety (15%), weather (10%), and user rating (5%).
 *   **Cost Estimates:** We assumed hotel rooms accommodate 2 people. We also assumed car travel costs scale per vehicle (like 4 people sharing gas), while Train/Flight/Bus costs scale linearly per person.
-*   **Database Completeness:** We assume our underlying catalog (`CatalogDestination`) contains enough varied destination data to provide meaningful recommendations across different budgets, modes, and "Outside India" filters.
-*   **Base Travel Speed:** When exact data is missing, we use rough estimates for travel time calculations (e.g., Train=60km/h, Flight=500km/h, Car/Bus=50km/h).
+*   **Database Completeness:** Our underlying catalog (`CatalogDestination`) contains seeded data. However, **if the database lacks options**, the system automatically queries the **Wikipedia API** using a curated list of ~55 global real-world destinations, pulling pristine high-res images and descriptions while calculating exact distances and realistic travel figures dynamically.
+*   **Base Travel Speed:** For calculated travel time, we map hardcoded exact literal map distances and divide by realistic speed estimates (e.g., Train=70km/h, Flight=750km/h + 3hrs airport prep).
 
 ## Why you structured the solution the way you did
 
