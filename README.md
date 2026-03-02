@@ -6,6 +6,8 @@ Have you ever tried planning a trip with friends or family, only to get complete
 
 That's exactly why this project exists. It's an intelligent, MERN-stack travel assistant disguised as a friendly chat interface. You tell it your budget, how you're traveling, and who you're going with, and it mathematically evaluates and ranks the absolute best destinations for your specific situation.
 
+![System Architecture](architecture.svg)
+
 ---
 
 ## Your understanding of the problem
