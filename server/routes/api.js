@@ -117,7 +117,7 @@ router.post('/destinations/suggest', async (req, res) => {
         const allDestinations = await DestinationModel.find({});
 
         // Filter destinations that fit the budget
-        const validDestinations = allDestinations.filter(dest => {
+        let validDestinations = allDestinations.filter(dest => {
             if (landType && landType !== 'Any' && dest.landType !== landType) {
                 return false;
             }
@@ -149,32 +149,56 @@ router.post('/destinations/suggest', async (req, res) => {
             return estimatedTotalCost <= totalBudget;
         });
 
-        if (validDestinations.length === 0) {
-            return res.json({ success: true, count: 0, rankedResults: [] });
+        let formattedDestinations = [];
+
+        // If local DB finds things, map them
+        if (validDestinations.length > 0) {
+            formattedDestinations = validDestinations.map(d => {
+                const distance = d.distanceFromMajorCities?.[startLocation] || 500;
+                const numRooms = Math.ceil(memberCount / 2);
+                const hotelCost = d.hotelCostPerDay * tripDays * numRooms;
+                const foodCost = d.foodCostPerDay * tripDays * memberCount;
+                let travelCost = d.baseTravelCost?.[modeOfTravel] * memberCount || 5000;
+                if (modeOfTravel === 'Car') {
+                    travelCost = (d.baseTravelCost?.['Car'] || 3000) * Math.ceil(memberCount / 4);
+                }
+
+                return {
+                    name: d.name,
+                    budget: hotelCost + foodCost + travelCost,
+                    travelTimeHours: distance / (modeOfTravel === 'Train' ? 60 : modeOfTravel === 'Flight' ? 500 : 50), // Rough estimate
+                    distanceKm: distance,
+                    safetyRating: 8, // Default fallback if missing
+                    weatherSuitability: 8, // Default fallback if missing
+                    userRating: 8.5, // Default fallback if missing
+                    imageUrl: d.imageUrl
+                };
+            });
         }
 
-        // Map them to the format expected by evaluateDestinations for ranking best overall options
-        const formattedDestinations = validDestinations.map(d => {
-            const distance = d.distanceFromMajorCities?.[startLocation] || 500;
-            const numRooms = Math.ceil(memberCount / 2);
-            const hotelCost = d.hotelCostPerDay * tripDays * numRooms;
-            const foodCost = d.foodCostPerDay * tripDays * memberCount;
-            let travelCost = d.baseTravelCost?.[modeOfTravel] * memberCount || 5000;
-            if (modeOfTravel === 'Car') {
-                travelCost = (d.baseTravelCost?.['Car'] || 3000) * Math.ceil(memberCount / 4);
-            }
+        // If no results, or if "Any" is selected and we want an infinite variety, fetch from Wikipedia
+        if (formattedDestinations.length < 5) {
+            const { suggestFromWikipedia } = require('../services/wikipediaService');
+            const wikiDestinations = await suggestFromWikipedia(
+                startLocation,
+                landType || 'Any',
+                !!isOutsideIndia,
+                totalBudget,
+                modeOfTravel,
+                memberCount
+            );
 
-            return {
-                name: d.name,
-                budget: hotelCost + foodCost + travelCost,
-                travelTimeHours: distance / (modeOfTravel === 'Train' ? 60 : modeOfTravel === 'Flight' ? 500 : 50), // Rough estimate
-                distanceKm: distance,
-                safetyRating: 8, // Default fallback if missing
-                weatherSuitability: 8, // Default fallback if missing
-                userRating: 8.5, // Default fallback if missing
-                imageUrl: d.imageUrl
-            };
-        });
+            // Combine them, ensuring no exact name duplicates
+            for (const wd of wikiDestinations) {
+                if (!formattedDestinations.find(d => d.name.toLowerCase() === wd.name.toLowerCase())) {
+                    formattedDestinations.push(wd);
+                }
+            }
+        }
+
+        if (formattedDestinations.length === 0) {
+            return res.json({ success: true, count: 0, rankedResults: [] });
+        }
 
         // Use existing scoring logic
         const results = evaluateDestinations(formattedDestinations);

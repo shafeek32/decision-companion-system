@@ -159,6 +159,18 @@ const Results = ({ data, onReset }) => {
                                 </ul>
                             </div>
                         )}
+
+                        {/* Wikipedia Extract */}
+                        {winner.input && winner.input.description && (
+                            <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-3 mt-4">
+                                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold flex items-center gap-1">
+                                    About {winner.name}
+                                </p>
+                                <p className="text-sm text-gray-700 leading-relaxed italic">
+                                    "{winner.input.description}"
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
