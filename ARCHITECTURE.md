@@ -80,28 +80,33 @@ sequenceDiagram
 
 ## 4. Data Flow — Auto-Suggest Mode (`POST /api/destinations/suggest`)
 
-The user provides constraints; the system filters the catalog and returns the top 5 affordable destinations.
+The user provides constraints. The system tries the local catalog and seamlessly falls back to the Wikipedia API to generate pristine, dynamic options if needed.
 
 ```mermaid
 sequenceDiagram
     participant User
     participant ChatLayout
     participant APIRouter as API Router
-    participant Catalog as MongoDB (CatalogDestination)
+    participant Catalog as MongoDB (Catalog)
+    participant Wiki as Wikipedia API
     participant ScoringService
 
-    User->>ChatLayout: Inputs constraints (location, mode, budget, days, members, filters)
+    User->>ChatLayout: Inputs constraints (budget, landType, isOutsideIndia)
     ChatLayout->>APIRouter: POST /api/destinations/suggest
-    APIRouter->>Catalog: find({}) — fetch all catalog entries
-    Catalog-->>APIRouter: All destinations
-    APIRouter->>APIRouter: Filter by landType (if set)
-    APIRouter->>APIRouter: Filter by scope / isOutsideIndia (if set)
-    APIRouter->>APIRouter: Calculate estimated cost per destination\n(hotel + food + travel × members/rooms)
-    APIRouter->>APIRouter: Discard destinations where cost > totalBudget
+    APIRouter->>Catalog: find({ scope, landType })
+    Catalog-->>APIRouter: Match results
+    APIRouter->>APIRouter: Filter affordable & calculate cost
+    
+    alt validDestinations.length < 5
+        APIRouter->>Wiki: suggestFromWikipedia(landType, isOutsideIndia)
+        Wiki-->>APIRouter: 5 exact-match authentic destinations
+        APIRouter->>APIRouter: Merge & deduplicate
+    end
+
     APIRouter->>ScoringService: evaluateDestinations(validDestinations)
     ScoringService-->>APIRouter: Ranked array
     APIRouter-->>ChatLayout: { rankedResults: top 5, count }
-    ChatLayout->>User: Renders Results (table + polar chart)
+    ChatLayout->>User: Renders Results (table + polar chart + Wikipedia Extract)
 ```
 
 ---

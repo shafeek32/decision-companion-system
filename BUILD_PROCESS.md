@@ -48,6 +48,12 @@ Extended the filtering with two new conversational constraints:
 **Phase 5: Undo Feature**
 Added a `history` stack in state. Before every user action, the current `tripData` is snapshotted. The "Back" button pops the stack and removes the last message pair from the UI, allowing users to go back and change any answer without restarting.
 
+**Phase 6: Wikipedia Fallback Engine**
+If a user provided extreme constraints (e.g. "Outside India" + "Any" experience) the static database catalog eventually couldn't keep up. Integrated the `wikipediaService.js` to dynamically fall back to a curated list of ~55 global real-world destinations, fetching pristine, descriptive, and image-rich Wikipedia pages on the fly.
+
+**Phase 7: Exact Distance Mathematical Generation**
+Random travel distances created logical inconsistencies (e.g. Paris showing as a 3000km drive). Overhauled the `wikipediaService.js` generation logic to use hardcoded baseline `distanceKm` mappings representing accurate travel distances from India to global cities. Travel time costs now use literal mathematical flight formulas.
+
 ---
 
 ## 🔄 Alternative Approaches Considered and Rejected
@@ -119,6 +125,7 @@ server/
     api.js                 ← All REST endpoints
   services/
     scoringService.js      ← Pure scoring + normalization logic
+    wikipediaService.js    ← Dynamic external Wikipedia fetching + Exact Mapping
   seed.js                  ← Database population script (25 destinations)
 ```
 
@@ -194,6 +201,8 @@ All math lives in `scoringService.js` independent of Express. This means the sco
 | India only → Outside India filter | International trips have different cost profiles |
 | Fixed experience → Land type filter | Match user's vibe (beach vs. hills vs. city) |
 | Flat hotel cost → Per-room scaled by days | More accurate real-world cost modelling |
+| Static Catalog Walls → Wikipedia API Fallback | Infinite suggestions when DB doesn't have matches |
+| Randomized distance logic → Exact Distance Mapping | Prevents logical impossibilities (e.g. 100km drives to Paris) |
 
 ---
 
@@ -206,6 +215,7 @@ The system can currently:
 - Ask whether the user wants domestic or international travel
 - Ask what type of experience the user wants (beach, hill station, city, forest)
 - Filter the destination catalog by budget, scope, land type, and travel mode
+- **Gracefully fallback to querying the Wikipedia API against a curated list of ~55 authentic global cities to pull authentic datasets when DB options are exhausted**
 - Apply Min-Max normalization across 6 scored criteria
 - Rank viable destinations using the Weighted Sum Model
 - Generate natural-language explanations for the top recommendation
