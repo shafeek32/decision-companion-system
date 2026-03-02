@@ -1,4 +1,4 @@
-# 🏗️ Decision Companion System — Architecture
+# 🏗️ Smart Destination Decision System — Architecture
 
 This document contains visual diagrams describing the architecture, data flow, component hierarchy, and core decision logic of the Smart Destination Decision System. All diagrams reflect the current implementation state.
 

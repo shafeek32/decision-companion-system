@@ -1,4 +1,4 @@
-# Build Process — Decision Companion System
+# Build Process — Smart Destination Decision System
 
 This document records the complete development journey of the Smart Destination Decision System, including decisions made, mistakes encountered and corrected, architectural pivots, and every major iteration from concept to the current working state.
 

@@ -1,4 +1,4 @@
-# Research Log — Decision Companion System
+# Research Log — Smart Destination Decision System
 
 This document records all AI prompts used, reference material consulted, search queries made, and decisions about what was accepted, modified, or rejected from AI suggestions during the development of the Smart Destination Decision System.
 

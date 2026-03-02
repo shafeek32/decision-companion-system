@@ -1,6 +1,6 @@
-# 🌍 Decision Companion System
+# 🌍 Smart Destination Decision System
 
-Hey there! Welcome to the **Decision Companion System**. 
+Hey there! Welcome to the **Smart Destination Decision System**. 
 
 Have you ever tried planning a trip with friends or family, only to get completely overwhelmed by conflicting opinions, budgets, and travel constraints? Yeah, us too. 
 
